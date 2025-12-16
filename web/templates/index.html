@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lab 3 — Digest Checker</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+</head>
+<body>
+<header class="topbar">
+    <div class="topbar__inner">
+        <div class="brand">
+            <div class="brand__mark">L3</div>
+            <div class="brand__text">
+                <div class="brand__title">Laboratory Work No. 3</div>
+                <div class="brand__subtitle">Ravluk / Suprun / Shestakov</div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="page">
+    <div class="container">
+        <section class="grid">
+            <aside class="card card--soft">
+                <div class="card__header">
+                    <div>
+                        <div class="card__title">Input Rules</div>
+                        <div class="card__subtitle">To ensure unambiguous verification</div>
+                    </div>
+                </div>
+
+                <div class="rules">
+                    <div class="rule">
+                        <div class="rule__badge">1</div>
+                        <div class="rule__body">
+                            <div class="rule__title">Supported files</div>
+                            <div class="rule__text">Documents (.docx), source code (.py, .txt, etc.), images (.png).</div>
+                        </div>
+                    </div>
+                    <div class="rule">
+                        <div class="rule__badge">2</div>
+                        <div class="rule__body">
+                            <div class="rule__title">Digest length</div>
+                            <div class="rule__text">Choose 2, 4, or 8 bits. The result is always a binary string of the selected length.</div>
+                        </div>
+                    </div>
+                    <div class="rule">
+                        <div class="rule__badge">3</div>
+                        <div class="rule__body">
+                            <div class="rule__title">Verification</div>
+                            <div class="rule__text">In Verify mode, the expected digest must contain only 0/1 and match the selected bit length.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="note">
+                    <div class="note__title">Tip</div>
+                    <div class="note__text">For collision demonstration, using 2 bits is the most convenient.</div>
+                </div>
+            </aside>
+
+            <section class="card card--main">
+                <div class="card__header card__header--row">
+                    <div>
+                        <div class="card__title">Computation and Verification</div>
+                        <div class="card__subtitle">Upload a file, select the length, and enter the expected digest in Verify mode</div>
+                    </div>
+
+                    <div class="tabs" role="tablist" aria-label="Mode">
+                        <button id="tabHash" class="tab tab--active" type="button" role="tab" aria-selected="true">Hash</button>
+                        <button id="tabVerify" class="tab" type="button" role="tab" aria-selected="false">Verify</button>
+                    </div>
+                </div>
+
+                <form id="computeForm" class="form" action="/hash" method="post" enctype="multipart/form-data">
+                    <input type="hidden" id="modeInput" name="mode" value="hash">
+
+                    <div class="form__row">
+                        <div class="field">
+                            <label class="field__label">File</label>
+                            <div class="file">
+                                <input id="fileInput" class="file__input" type="file" name="file" required>
+                                <div class="file__hint">Select a file from disk</div>
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="field__label">Length</label>
+                            <select id="bitsSelect" class="field__control" name="bits" required>
+                                <option value="2">2 bits</option>
+                                <option value="4">4 bits</option>
+                                <option value="8">8 bits</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="field" id="expectedField">
+                        <label class="field__label">Expected digest</label>
+                        <input id="expectedInput" class="field__control" type="text" name="expected_digest" placeholder="Example: 01 or 11001010">
+                        <div class="field__help" id="expectedHelp">
+                            In Verify mode: only 0/1, length must match the selected bits.
+                        </div>
+                    </div>
+
+                    <div class="actions">
+                        <button id="openConfirm" class="btn btn--primary" type="button">Compute</button>
+                        <a class="btn btn--ghost" href="/">Reset</a>
+                    </div>
+                </form>
+
+                {% if digest %}
+                <div class="result">
+                    <div class="result__top">
+                        <div class="result__title">Result</div>
+
+                        {% if expected_digest is not none %}
+                            {% if not valid_expected %}
+                                <div class="status status--bad">Invalid format</div>
+                            {% elif verification_result %}
+                                <div class="status status--ok">OK</div>
+                            {% else %}
+                                <div class="status status--bad">FAILED</div>
+                            {% endif %}
+                        {% else %}
+                            <div class="status status--neutral">Computed</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="kv">
+                        <div class="kv__item">
+                            <div class="kv__k">File</div>
+                            <div class="kv__v">{{ filename }}</div>
+                        </div>
+                        <div class="kv__item">
+                            <div class="kv__k">Length</div>
+                            <div class="kv__v">{{ bits }} bits</div>
+                        </div>
+                    </div>
+
+                    <div class="digestbox">
+                        <div class="digestbox__label">Computed digest</div>
+                        <div class="digestbox__value"><span class="mono">{{ digest }}</span></div>
+                    </div>
+
+                    {% if expected_digest is not none %}
+                    <div class="digestbox digestbox--alt">
+                        <div class="digestbox__label">Provided digest</div>
+                        <div class="digestbox__value"><span class="mono">{{ expected_digest }}</span></div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </section>
+        </section>
+    </div>
+</main>
+
+<dialog id="confirmDialog" class="modal">
+    <div class="modal__inner">
+        <div class="modal__header">
+            <div class="modal__title">Confirmation</div>
+            <div class="modal__subtitle">Start computation and, in Verify mode, comparison?</div>
+        </div>
+
+        <div class="modal__content">
+            <div class="summary">
+                <div class="summary__row">
+                    <div class="summary__k">Mode</div>
+                    <div class="summary__v" id="sumMode">—</div>
+                </div>
+                <div class="summary__row">
+                    <div class="summary__k">File</div>
+                    <div class="summary__v" id="sumFile">—</div>
+                </div>
+                <div class="summary__row">
+                    <div class="summary__k">Length</div>
+                    <div class="summary__v" id="sumBits">—</div>
+                </div>
+                <div class="summary__row">
+                    <div class="summary__k">Expected digest</div>
+                    <div class="summary__v mono" id="sumExpected">—</div>
+                </div>
+            </div>
+
+            <div class="modal__hint">
+                Verify compares the provided digest with the computed one. Hash performs computation only.
+            </div>
+        </div>
+
+        <div class="modal__actions">
+            <button id="cancelCompute" class="btn btn--ghost" type="button">Cancel</button>
+            <button id="confirmCompute" class="btn btn--primary" type="button">Start</button>
+        </div>
+    </div>
+</dialog>
+
+</body>
+</html>
