@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lab 3 — Digest Checker</title>
     <link rel="stylesheet" href="/static/style.css">
-    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    
 </head>
 <body>
 <header class="topbar">
@@ -13,7 +13,7 @@
         <div class="brand">
             <div class="brand__mark">L3</div>
             <div class="brand__text">
-                <div class="brand__title">Laboratory Work No. 3</div>
+                <div class="brand__title">Laboratory work No 3</div>
                 <div class="brand__subtitle">Ravluk / Suprun / Shestakov</div>
             </div>
         </div>
@@ -26,7 +26,7 @@
             <aside class="card card--soft">
                 <div class="card__header">
                     <div>
-                        <div class="card__title">Input Rules</div>
+                        <div class="card__title">Input rules</div>
                         <div class="card__subtitle">To ensure unambiguous verification</div>
                     </div>
                 </div>
@@ -36,7 +36,7 @@
                         <div class="rule__badge">1</div>
                         <div class="rule__body">
                             <div class="rule__title">Supported files</div>
-                            <div class="rule__text">Documents (.docx), source code (.py, .txt, etc.), images (.png).</div>
+                            <div class="rule__text">Document (.docx), source code (.py/.txt, etc.), image (.png).</div>
                         </div>
                     </div>
                     <div class="rule">
@@ -50,7 +50,7 @@
                         <div class="rule__badge">3</div>
                         <div class="rule__body">
                             <div class="rule__title">Verification</div>
-                            <div class="rule__text">In Verify mode, the expected digest must contain only 0/1 and match the selected bit length.</div>
+                            <div class="rule__text">In Verify mode, the digest must contain only 0/1 and match the selected bit length.</div>
                         </div>
                     </div>
                 </div>
@@ -64,8 +64,8 @@
             <section class="card card--main">
                 <div class="card__header card__header--row">
                     <div>
-                        <div class="card__title">Computation and Verification</div>
-                        <div class="card__subtitle">Upload a file, select the length, and enter the expected digest in Verify mode</div>
+                        <div class="card__title">Computation and verification</div>
+                        <div class="card__subtitle">Upload a file, select the length; in Verify mode enter the expected digest</div>
                     </div>
 
                     <div class="tabs" role="tablist" aria-label="Mode">
@@ -89,19 +89,17 @@
                         <div class="field">
                             <label class="field__label">Length</label>
                             <select id="bitsSelect" class="field__control" name="bits" required>
-                                <option value="2">2 bits</option>
-                                <option value="4">4 bits</option>
-                                <option value="8">8 bits</option>
+                                <option value="2" {% if bits == 2 %}selected{% endif %}>2 bits</option>
+                                <option value="4" {% if bits == 4 %}selected{% endif %}>4 bits</option>
+                                <option value="8" {% if bits == 8 %}selected{% endif %}>8 bits</option>
                             </select>
                         </div>
                     </div>
 
                     <div class="field" id="expectedField">
                         <label class="field__label">Expected digest</label>
-                        <input id="expectedInput" class="field__control" type="text" name="expected_digest" placeholder="Example: 01 or 11001010">
-                        <div class="field__help" id="expectedHelp">
-                            In Verify mode: only 0/1, length must match the selected bits.
-                        </div>
+                        <input id="expectedInput" class="field__control" type="text" name="expected_digest" value="{{ expected_digest or '' }}" placeholder="Example: 01 or 11001010">
+                        <div class="field__help" id="expectedHelp">In Verify mode: only 0/1, length must match selected bits.</div>
                     </div>
 
                     <div class="actions">
@@ -146,7 +144,7 @@
 
                     {% if expected_digest is not none %}
                     <div class="digestbox digestbox--alt">
-                        <div class="digestbox__label">Provided digest</div>
+                        <div class="digestbox__label">Input digest</div>
                         <div class="digestbox__value"><span class="mono">{{ expected_digest }}</span></div>
                     </div>
                     {% endif %}
@@ -161,7 +159,7 @@
     <div class="modal__inner">
         <div class="modal__header">
             <div class="modal__title">Confirmation</div>
-            <div class="modal__subtitle">Start computation and, in Verify mode, comparison?</div>
+            <div class="modal__subtitle">Start digest computation and, in Verify mode, verification?</div>
         </div>
 
         <div class="modal__content">
@@ -185,7 +183,7 @@
             </div>
 
             <div class="modal__hint">
-                Verify compares the provided digest with the computed one. Hash performs computation only.
+                Verify compares the input digest with the computed one. Hash performs computation only.
             </div>
         </div>
 
@@ -196,5 +194,121 @@
     </div>
 </dialog>
 
+<script>
+(() => {
+    const form = document.getElementById("computeForm");
+    const dialog = document.getElementById("confirmDialog");
+
+    const tabHash = document.getElementById("tabHash");
+    const tabVerify = document.getElementById("tabVerify");
+
+    const modeInput = document.getElementById("modeInput");
+    const fileInput = document.getElementById("fileInput");
+    const bitsSelect = document.getElementById("bitsSelect");
+
+    const expectedField = document.getElementById("expectedField");
+    const expectedInput = document.getElementById("expectedInput");
+    const expectedHelp = document.getElementById("expectedHelp");
+
+    const openBtn = document.getElementById("openConfirm");
+    const cancelBtn = document.getElementById("cancelCompute");
+    const confirmBtn = document.getElementById("confirmCompute");
+
+    const sumMode = document.getElementById("sumMode");
+    const sumFile = document.getElementById("sumFile");
+    const sumBits = document.getElementById("sumBits");
+    const sumExpected = document.getElementById("sumExpected");
+
+    let confirmed = false;
+
+    const normalize = (v) => (v || "").trim();
+    const getMode = () => modeInput.value;
+
+    const setActiveTab = (mode) => {
+        const isHash = mode === "hash";
+        tabHash.classList.toggle("tab--active", isHash);
+        tabVerify.classList.toggle("tab--active", !isHash);
+    };
+
+    const validateExpected = () => {
+        expectedInput.setCustomValidity("");
+        if (getMode() !== "verify") return true;
+
+        const bits = Number(bitsSelect.value);
+        const v = normalize(expectedInput.value);
+
+        if (!v.length) {
+            expectedInput.setCustomValidity("Expected digest is required in Verify mode.");
+            return false;
+        }
+        if (!/^[01]+$/.test(v)) {
+            expectedInput.setCustomValidity("Expected digest must contain only 0 and 1.");
+            return false;
+        }
+        if (v.length !== bits) {
+            expectedInput.setCustomValidity(`Expected digest length must be exactly ${bits} bits.`);
+            return false;
+        }
+        return true;
+    };
+
+    const setMode = (mode) => {
+        modeInput.value = mode;
+        setActiveTab(mode);
+
+        const isVerify = mode === "verify";
+        expectedInput.disabled = !isVerify;
+
+        expectedHelp.textContent = isVerify
+            ? "Verify mode: enter a binary digest matching the selected length."
+            : "This field is not used in Hash mode.";
+
+        validateExpected();
+    };
+
+    const updateSummary = () => {
+        const fileName = fileInput.files && fileInput.files.length ? fileInput.files[0].name : "—";
+        sumMode.textContent = getMode() === "verify" ? "Verify" : "Hash";
+        sumFile.textContent = fileName;
+        sumBits.textContent = `${bitsSelect.value} bits`;
+        sumExpected.textContent = getMode() === "verify" ? normalize(expectedInput.value) || "—" : "—";
+    };
+
+    const openDialog = () => {
+        if (!fileInput.files.length) {
+            fileInput.reportValidity();
+            return;
+        }
+        if (getMode() === "verify" && !validateExpected()) {
+            expectedInput.reportValidity();
+            return;
+        }
+        updateSummary();
+        dialog.showModal();
+    };
+
+    tabHash.addEventListener("click", () => setMode("hash"));
+    tabVerify.addEventListener("click", () => setMode("verify"));
+
+    openBtn.addEventListener("click", openDialog);
+    cancelBtn.addEventListener("click", () => dialog.close());
+    confirmBtn.addEventListener("click", () => {
+        confirmed = true;
+        dialog.close();
+        form.submit();
+    });
+
+    form.addEventListener("submit", (e) => {
+        if (!confirmed) {
+            e.preventDefault();
+            openDialog();
+        }
+        confirmed = false;
+    });
+
+    const serverExpected = "{{ expected_digest or '' }}";
+    setMode(serverExpected.trim().length ? "verify" : "hash");
+})();
+</script>
 </body>
 </html>
